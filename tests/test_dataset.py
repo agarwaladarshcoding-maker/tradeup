@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from tradeup.dataset import PEER, PRICE, build, forward_return
+from tradeup.dataset import FILING, FILING_PEER, PEER, PRICE, build, forward_return
 from tradeup.prices import INDEX
 
 
@@ -95,3 +95,45 @@ def test_build_no_look_ahead():
         bumped.loc[after, col] *= 2.5
     data2, _ = build(bumped, sectors)
     pd.testing.assert_frame_equal(data.loc[d, PRICE + PEER], data2.loc[d, PRICE + PEER])
+
+
+def make_filings(times, symbols=("S00", "S01")):
+    return pd.DataFrame(
+        {
+            "symbol": [symbols[i % len(symbols)] for i in range(len(times))],
+            "time": pd.to_datetime(times),
+            "category": ["Updates"] * len(times),
+            "text": ["receipt of order"] * len(times),
+        }
+    )
+
+
+def test_build_without_filings_has_no_filing_columns():
+    prices, sectors = make_prices()
+    data, _ = build(prices, sectors, filings=None)
+    assert not any(
+        c.startswith("fil_") or c.startswith("peer_abnormal") or c.startswith("peer_tone")
+        for c in data.columns
+    )
+
+
+def test_build_with_filings_has_filing_columns():
+    prices, sectors = make_prices()
+    filings = make_filings(["2018-06-01 10:00", "2018-07-02 10:00", "2018-08-01 10:00"])
+    data, _ = build(prices, sectors, filings=filings)
+    for col in FILING + FILING_PEER:
+        assert col in data.columns
+
+
+def test_build_filings_no_look_ahead():
+    prices, sectors = make_prices()
+    probe, _ = build(prices, sectors)
+    d = probe.index.unique("date").sort_values()[1]
+    stamp = lambda dt: (d + dt).strftime("%Y-%m-%d %H:%M")
+    base = make_filings([stamp(pd.Timedelta(days=-7)), stamp(pd.Timedelta(days=-6))])
+    data, _ = build(prices, sectors, filings=base)
+    extra = pd.concat(
+        [base, make_filings([stamp(pd.Timedelta(days=+7))])], ignore_index=True
+    )
+    data2, _ = build(prices, sectors, filings=extra)
+    pd.testing.assert_frame_equal(data.loc[d, FILING], data2.loc[d, FILING])
