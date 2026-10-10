@@ -3,7 +3,7 @@
 import numpy as np
 import pandas as pd
 
-from .config import COST_PER_SIDE, HORIZON, TOP_N
+from .config import COST_PER_SIDE, EXIT_RANK, HORIZON, TOP_N
 
 PERIODS_PER_YEAR = 252 / HORIZON
 
@@ -14,6 +14,20 @@ def top_n_weights(scores: pd.Series, n: int = TOP_N) -> pd.DataFrame:
     picked = (rank <= n).astype(float)
     weights = picked / picked.groupby(level="date").transform("sum")
     return weights.unstack("symbol").fillna(0.0)
+
+
+def buffered_weights(scores: pd.Series, n: int = TOP_N, exit_rank: int = EXIT_RANK) -> pd.DataFrame:
+    """Like top_n_weights, but a held stock stays until its rank falls below `exit_rank`.
+
+    Cuts trading: a stock that slips from 18th to 25th is not sold and rebought.
+    """
+    rows, held = {}, []
+    for day, s in scores.dropna().groupby(level="date"):
+        rank = s.droplevel("date").rank(ascending=False, method="first").sort_values()
+        held = [x for x in held if rank.get(x, exit_rank + 1) <= exit_rank][:n]
+        held += [x for x in rank.index if x not in held][: n - len(held)]
+        rows[day] = pd.Series(1 / len(held), index=held)
+    return pd.DataFrame(rows).T.rename_axis(index="date", columns="symbol").sort_index(axis=1).fillna(0.0)
 
 
 def net_returns(weights: pd.DataFrame, fwd: pd.DataFrame, cost: float = COST_PER_SIDE) -> pd.Series:
@@ -45,3 +59,12 @@ def rank_ic(scores: pd.Series, fwd: pd.Series) -> pd.Series:
     both = pd.concat({"score": scores, "fwd": fwd}, axis=1).dropna()
     ranked = both.groupby(level="date").rank()
     return ranked.groupby(level="date").apply(lambda g: g["score"].corr(g["fwd"]))
+
+
+def bucket_returns(scores: pd.Series, fwd: pd.Series, buckets: int = 5) -> pd.Series:
+    """Average yearly return before costs of each score bucket; bucket 1 holds the lowest scores."""
+    both = pd.concat({"score": scores, "fwd": fwd}, axis=1).dropna()
+    rank = both.groupby(level="date")["score"].rank(pct=True, method="first")
+    bucket = np.ceil(rank * buckets).astype(int).rename("bucket")
+    per_day = both["fwd"].groupby([both.index.get_level_values("date"), bucket]).mean()
+    return per_day.groupby(level="bucket").mean() * PERIODS_PER_YEAR
