@@ -24,3 +24,15 @@ yarn-error.log*
 .vscode/
 *.swp
 *.swo
+
+# OpenAlgo (separate upstream repo, AGPL-3.0)
+openalgo-angel/
+openalgo-zerodha/
+
+# TradeUp v1
+data/
+.venv/
+__pycache__/
+.pytest_cache/
+.agents/logs/
+.agents/snap/
