@@ -143,3 +143,22 @@ Each stage has a gate. If the gate fails, fix or stop; do not move on.
 | First text source | Exchange filings, then news |
 
 This document is an engineering assessment, not investment advice. Real money goes in only after Stage 5 paper results hold up.
+
+## 8. Results so far (2026-10-10)
+
+Full numbers are in [reports/v1_baseline.md](reports/v1_baseline.md). Test period 2019 to September 2025, 200 most traded stocks on each date, 0.15% cost per side.
+
+| Stage | Gate | Outcome |
+|---|---|---|
+| 0 Data | Prices cross-checked, collectors running | Partly. Prices and ten years of NSE filings are in. Not cross-checked against Angel One. Delisted stocks are missing. |
+| 1 Price model | Ranks better than chance and beats the comparisons after costs | Half. Rank correlation is 0.035 and positive every year, but the top-20 portfolio earns less than holding the whole universe once costs are paid. |
+| 2 Peer and filing features | Improve on stage 1 | Not passed. Neither price-peer features nor word-list filing features changed the result. |
+
+What the numbers say:
+
+- The model is good at spotting the worst fifth of stocks (about 14% a year against 21 to 25% for the rest) and poor at telling the best fifth from the middle. A long-only top-20 portfolio cannot use that.
+- Weekly trading of 70% of the portfolio costs about 10% a year. Holding until rank 60 halves this and adds 3 to 6 points, still short of the equal-weight line.
+- Plain 12-month momentum, which trades little, is the only strategy near the usual significance bar, and it weakened in 2024 and 2025.
+- Filing tone here is a word list that scores about 7% of filings and often wrongly. The stage 2 gate has not had a fair test until a language model reads the filings.
+
+Experiments run so far: 5 feature sets, 2 holding rules, 1 universe change. None were tuned.
